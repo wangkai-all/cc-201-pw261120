@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>语料工坊 · 可回查原文的切分对照</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">◧</span>
+      <div>
+        <h1>语料工坊</h1>
+        <p>切分、重叠与原文坐标，一处可回查</p>
+      </div>
+    </div>
+    <div class="topbar-stats" id="stats-bar">
+      <span class="stat-chip" data-stat="documents">文档 —</span>
+      <span class="stat-chip" data-stat="chunkContents">片段内容 —</span>
+      <span class="stat-chip" data-stat="references">引用 —</span>
+      <span class="stat-chip" data-stat="sharedChunks">共享 —</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn ghost" id="btn-export" type="button">导出训练清单</button>
+      <button class="btn" id="btn-upload" type="button">＋ 上传文本</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="文档与规则">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>文档</h2>
+          <span class="count" id="doc-count">0</span>
+        </div>
+        <div class="doc-list" id="doc-list">
+          <p class="empty">还没有文档。上传文本或载入合成样例。</p>
+        </div>
+        <button class="btn subtle full" id="btn-load-samples" type="button">载入三篇合成样例</button>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>切分规则</h2>
+          <span class="count" id="rule-version">v1</span>
+        </div>
+        <div class="rule-summary" id="rule-summary"></div>
+        <button class="btn subtle full" id="btn-rule-editor" type="button">调整并保存新版本</button>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>作业记录</h2>
+          <span class="count" id="job-count">0</span>
+        </div>
+        <ul class="job-list" id="job-list"></ul>
+      </section>
+    </aside>
+
+    <main class="main" id="main">
+      <section class="hero" id="hero">
+        <div class="hero-card">
+          <p class="eyebrow">从清洗文本回到原文</p>
+          <h2>每一个切片，都能指回它真正的原文位置。</h2>
+          <p>
+            统一换行与 Unicode 规范化会改变字符长度。这里为每个原文字素簇保留一条映射，
+            切片边界只落在字素簇之间，因此表情、组合字符与多字节文本不会被切开。
+          </p>
+          <div class="hero-actions">
+            <button class="btn" id="btn-upload-2" type="button">上传第一份文本</button>
+            <button class="btn ghost" id="btn-samples-2" type="button">先用合成样例看看</button>
+          </div>
+          <ul class="feature-list">
+            <li><strong>原文高亮</strong>点击片段或原文，双向定位，包含重叠范围。</li>
+            <li><strong>跨文档共享</strong>相同内容只存一份，但每条来源引用独立保留。</li>
+            <li><strong>安全删除</strong>删文档只回收它独占的内容，其他文档的引用不受影响。</li>
+            <li><strong>规则版本</strong>保存规则生成新版本，对比切分差异，只重算受影响文档。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="workspace hidden" id="workspace">
+        <div class="doc-header">
+          <div>
+            <div class="doc-title-row">
+              <h2 id="doc-title">—</h2>
+              <span class="badge" id="doc-rule-badge">规则 v1</span>
+              <span class="badge muted" id="doc-reuse-badge"></span>
+            </div>
+            <p class="doc-meta" id="doc-meta"></p>
+          </div>
+          <div class="doc-actions">
+            <button class="btn subtle" id="btn-preview" type="button">规则预览</button>
+            <button class="btn subtle" id="btn-compare" type="button">版本对比</button>
+            <button class="btn subtle" id="btn-reanalyze" type="button">重新切分</button>
+            <button class="btn danger-ghost" id="btn-delete" type="button">删除</button>
+          </div>
+        </div>
+
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="chunks" role="tab" type="button">片段</button>
+          <button class="tab" data-tab="original" role="tab" type="button">原文对照</button>
+          <button class="tab" data-tab="shared" role="tab" type="button">跨文档引用</button>
+          <button class="tab" data-tab="revisions" role="tab" type="button">版本</button>
+        </div>
+
+        <div class="tab-panel" data-panel="chunks">
+          <div class="split">
+            <div class="pane">
+              <div class="pane-head">
+                <h3>切分结果</h3>
+                <div class="inline-controls">
+                  <label class="toggle">
+                    <input type="checkbox" id="toggle-overlap"> 显示重叠
+                  </label>
+                  <input class="search" id="chunk-search" type="search" placeholder="筛选片段文本…">
+                </div>
+              </div>
+              <ol class="chunk-list" id="chunk-list"></ol>
+            </div>
+            <div class="pane detail-pane">
+              <div class="pane-head">
+                <h3>片段详情</h3>
+                <span class="count" id="chunk-detail-label">未选择</span>
+              </div>
+              <div class="chunk-detail" id="chunk-detail">
+                <p class="empty">从左侧选择一个片段，查看文本与原文坐标。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel hidden" data-panel="original">
+          <div class="pane">
+            <div class="pane-head">
+              <h3>原文</h3>
+              <div class="legend">
+                <span><i class="swatch core"></i>当前片段</span>
+                <span><i class="swatch overlap"></i>重叠</span>
+                <span><i class="swatch shared"></i>跨文档共享</span>
+                <span><i class="swatch changed"></i>清洗改变</span>
+              </div>
+            </div>
+            <pre class="raw-text" id="raw-text"></pre>
+          </div>
+        </div>
+
+        <div class="tab-panel hidden" data-panel="shared">
+          <div class="pane">
+            <div class="pane-head">
+              <h3>跨文档重复片段</h3>
+              <span class="count" id="shared-count">0</span>
+            </div>
+            <p class="hint">相同内容只存一份。删除某一个文档时，其他文档的引用仍然保留。</p>
+            <div id="shared-list" class="shared-list"></div>
+          </div>
+        </div>
+
+        <div class="tab-panel hidden" data-panel="revisions">
+          <div class="pane">
+            <div class="pane-head">
+              <h3>版本历史</h3>
+              <span class="count" id="revision-count">0</span>
+            </div>
+            <div id="revision-list" class="revision-list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="upload-dialog" class="modal">
+    <form method="dialog" id="upload-form" class="modal-body">
+      <header class="modal-head">
+        <h2>上传文本</h2>
+        <button class="icon-btn" value="cancel" formnovalidate aria-label="关闭">×</button>
+      </header>
+      <div class="modal-content">
+        <label class="field">
+          <span>文档名</span>
+          <input name="name" id="upload-name" placeholder="例如：城市夜航">
+        </label>
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="file-input" accept=".txt,.md,text/plain" hidden>
+          <strong>拖入文本文件，或点击选择</strong>
+          <small>支持 .txt / .md；也可以直接在下方粘贴文本</small>
+          <span class="file-name" id="file-name"></span>
+        </label>
+        <label class="field">
+          <span>文本内容</span>
+          <textarea id="upload-text" rows="10" placeholder="粘贴文本…"></textarea>
+        </label>
+        <label class="field inline">
+          <span>上传后使用的规则</span>
+          <select id="upload-rule"></select>
+        </label>
+        <p class="form-error" id="upload-error" role="alert"></p>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn ghost" value="cancel" formnovalidate>取消</button>
+        <button class="btn" value="submit" id="upload-submit">开始切分</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="rule-dialog" class="modal wide">
+    <form method="dialog" id="rule-form" class="modal-body">
+      <header class="modal-head">
+        <h2>规则预览与保存</h2>
+        <button class="icon-btn" value="cancel" formnovalidate aria-label="关闭">×</button>
+      </header>
+      <div class="modal-content rule-layout">
+        <div class="rule-fields">
+          <label class="field">
+            <span>段落识别</span>
+            <select name="paragraphMode" id="f-paragraphMode">
+              <option value="blank-line">空行分段</option>
+              <option value="line">每行一段</option>
+              <option value="regex">正则分隔</option>
+            </select>
+          </label>
+          <label class="field" id="regex-field" hidden>
+            <span>段落分隔正则</span>
+            <input name="paragraphRegex" id="f-paragraphRegex" placeholder="\\n\\s*\\n">
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>最长块字符数</span>
+              <input name="maxChars" id="f-maxChars" type="number" min="8" max="4000" step="1">
+            </label>
+            <label class="field">
+              <span>重叠字符数</span>
+              <input name="overlapChars" id="f-overlapChars" type="number" min="0" max="3999" step="1">
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>Unicode 规范化</span>
+              <select name="normalization" id="f-normalization">
+                <option value="none">不处理</option>
+                <option value="NFC">NFC</option>
+                <option value="NFD">NFD</option>
+                <option value="NFKC">NFKC</option>
+                <option value="NFKD">NFKD</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>换行统一</span>
+              <select name="newline" id="f-newline">
+                <option value="keep">保持原样</option>
+                <option value="lf">统一为 LF</option>
+                <option value="crlf">统一为 CRLF</option>
+              </select>
+            </label>
+          </div>
+          <label class="field checkbox">
+            <input type="checkbox" id="f-trimParagraphs" checked>
+            <span>去除段落首尾空白</span>
+          </label>
+          <label class="field">
+            <span>版本说明（可选）</span>
+            <input name="note" id="f-note" placeholder="例如：缩小块长到 120">
+          </label>
+          <p class="form-error" id="rule-error" role="alert"></p>
+          <div class="rule-actions">
+            <button class="btn ghost" type="button" id="btn-rule-reset">恢复当前规则</button>
+            <button class="btn subtle" type="button" id="btn-rule-preview">预览切分</button>
+            <button class="btn" type="button" id="btn-rule-save">保存为 v<span id="next-version">2</span></button>
+          </div>
+        </div>
+        <div class="rule-preview">
+          <div class="preview-stats" id="preview-stats">调整参数后点击「预览切分」。</div>
+          <ol class="chunk-list compact" id="preview-chunks"></ol>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="compare-dialog" class="modal wide">
+    <div class="modal-body">
+      <header class="modal-head">
+        <h2>版本对比</h2>
+        <button class="icon-btn" data-close aria-label="关闭">×</button>
+      </header>
+      <div class="modal-content">
+        <div class="compare-picker">
+          <label class="field">
+            <span>新版本</span>
+            <select id="compare-left"></select>
+          </label>
+          <span class="compare-arrow">→</span>
+          <label class="field">
+            <span>基准版本</span>
+            <select id="compare-right"></select>
+          </label>
+        </div>
+        <div class="compare-summary" id="compare-summary"></div>
+        <div class="compare-columns" id="compare-columns"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="shared-dialog" class="modal">
+    <div class="modal-body">
+      <header class="modal-head">
+        <h2>共享片段来源</h2>
+        <button class="icon-btn" data-close aria-label="关闭">×</button>
+      </header>
+      <div class="modal-content" id="shared-dialog-content"></div>
+    </div>
+  </dialog>
+
+  <dialog id="impact-dialog" class="modal">
+    <div class="modal-body">
+      <header class="modal-head">
+        <h2>新规则影响范围</h2>
+        <button class="icon-btn" data-close aria-label="关闭">×</button>
+      </header>
+      <div class="modal-content">
+        <p class="hint" id="impact-hint"></p>
+        <div class="impact-list" id="impact-list"></div>
+        <div class="impact-actions">
+          <button class="btn ghost" id="btn-apply-affected" type="button">只重算受影响文档</button>
+          <button class="btn" id="btn-apply-all" type="button">全部文档应用新规则</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="export-dialog" class="modal wide">
+    <div class="modal-body">
+      <header class="modal-head">
+        <h2>训练清单</h2>
+        <button class="icon-btn" data-close aria-label="关闭">×</button>
+      </header>
+      <div class="modal-content">
+        <div class="export-actions">
+          <label class="field inline">
+            <span>范围</span>
+            <select id="export-scope">
+              <option value="all">全部文档</option>
+              <option value="current">只导出当前文档</option>
+            </select>
+          </label>
+          <button class="btn subtle" id="btn-download-json" type="button">下载 JSONL</button>
+          <button class="btn ghost" id="btn-copy-manifest" type="button">复制 JSON</button>
+        </div>
+        <pre class="manifest-preview" id="manifest-preview"></pre>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
